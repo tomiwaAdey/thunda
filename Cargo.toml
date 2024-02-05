@@ -1,0 +1,28 @@
+[package]
+name = "thunda"
+version = "0.1.0"
+authors = ["Tomiwa Adey <tomiwa@gumtech.co.uk>"]
+description = "A Highly Scalable And Modular User Space TCP/IP stack written in Rust for Multicore systems."
+repository = "https://github.com/tomiwaadey/thunda.git"
+license = "MIT"
+keywords = ["tcp", "ip", "networking", "rust", "user-space", "multicore", "xdp", "af_xdp", "dpdk", "ethernet", "udp", "ipv6", "ipv4", "arp", "icmp"]
+categories = ["network-programming", "asynchronous-processing"]
+readme = "README.md"
+homepage = "https://github.com/tomiwaadey/thunda"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+actix = "0.13"
+log = "0.4"
+bytes = "1.1"
+tokio = { version = "1", features = ["full"] }
+
+[build-dependencies]
+cc = "1.0"
+
+[features]
+default = ["std", "log"]
+std = []
+log = []
