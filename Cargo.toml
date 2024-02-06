@@ -1,6 +1,7 @@
 [package]
 name = "thunda"
 version = "0.1.0"
+edition = "2021"
 authors = ["Tomiwa Adey <tomiwa@gumtech.co.uk>"]
 description = "A Highly Scalable And Modular User Space TCP/IP stack written in Rust for Multicore systems."
 repository = "https://github.com/tomiwaadey/thunda.git"
@@ -26,3 +27,5 @@ cc = "1.0"
 default = ["std", "log"]
 std = []
 log = []
+tap = []
+af_xdp = []
