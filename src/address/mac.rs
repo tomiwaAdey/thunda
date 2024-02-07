@@ -18,9 +18,7 @@
 /// println!("MAC Address (String): {}", mac_string);
 /// ```
 ///
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MacAddress(pub u64);
-
+///
 #[derive(Debug, PartialEq)]
 pub enum MacAddressParseError {
     InvalidLength,
@@ -38,6 +36,10 @@ impl std::fmt::Display for MacAddressParseError {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MacAddress(pub u64);
+
+
 impl std::fmt::Display for MacAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", to_string(*self))
@@ -50,6 +52,16 @@ impl std::fmt::Debug for MacAddress {
     }
 }
 
+// Allows using .parse() directly on string slices to create MacAddress instances.
+// MacAddress::from_str("...")
+impl std::str::FromStr for MacAddress {
+    type Err = MacAddressParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse(s)
+    }
+}
+
 /// Creates a new MAC address from a u64 value.
 pub fn new(address: u64) -> MacAddress {
     MacAddress(address)
@@ -57,23 +69,14 @@ pub fn new(address: u64) -> MacAddress {
 
 /// Parses a hexadecimal MAC address string into a MacAddress struct.
 pub fn parse(s: &str) -> Result<MacAddress, MacAddressParseError> {
-    let parts: Vec<&str> = s.split(':').collect();
-
-    if parts.len() != 6 {
+    let normalized_str = s.replace(&[':', '-', '.'][..], "");
+    if normalized_str.len() != 12 {
         return Err(MacAddressParseError::InvalidLength);
     }
 
-    parts.iter()
-        .try_fold(0u64, |acc, &part| {
-            if part.len() != 2 {
-                Err(MacAddressParseError::InvalidFormat)
-            } else {
-                u8::from_str_radix(part, 16)
-                    .map_err(|_| MacAddressParseError::InvalidCharacter)
-                    .map(|num| (acc << 8) | num as u64)
-            }
-        })
+    u64::from_str_radix(&normalized_str, 16)
         .map(MacAddress)
+        .map_err(|_| MacAddressParseError::InvalidCharacter)
 }
 
  /// Convert MacAddress into array of bytes
@@ -98,9 +101,31 @@ pub fn to_string(mac: MacAddress) -> String {
         (mac.0 & 0xFF))
 }
 
+// Checks if the MAC address is multicast
+pub fn is_multicast(mac: MacAddress) -> bool {
+    (to_bytes(mac)[0] & 0x01) != 0
+}
+
+// Checks if the MAC address is locally administered
+pub fn is_local(mac: MacAddress) -> bool {
+    (to_bytes(mac)[0] & 0x02) != 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const VALID_CONVERSION_TEST_CASES: [(&str, u64); 3] = [
+        ("00:00:00:00:00:00", 0x000000000000),
+        ("01:23:45:67:89:ab", 0x0123456789ab),
+        ("ff:ff:ff:ff:ff:ff", 0xffffffffffff),
+    ];
+
+    const INVALID_CONVERSION_TEST_CASES: [&str; 3] = [
+        "00-00-00-00-00",
+        "g1:22:33:44:55:66",
+        "01:23:45:67:89:gh",
+    ];
 
     #[test]
     fn test_new() {
@@ -115,11 +140,55 @@ mod tests {
         let mac = parse(mac_str).expect("Failed to parse MAC address");
         assert_eq!(mac, MacAddress(0x112233445566));
     }
+    #[test]
+    fn batch_test_parse_valid() {
+        for &(mac_str, expected) in VALID_CONVERSION_TEST_CASES.iter() {
+            assert_eq!(parse(mac_str).unwrap(), MacAddress(expected));
+        }
+    }
+
+    #[test]
+    fn batch_test_parse_invalid() {
+        for &mac_str in INVALID_CONVERSION_TEST_CASES.iter() {
+            assert!(parse(mac_str).is_err());
+        }
+    }
+
+    #[test]
+    fn test_parsing_variations() {
+        let variants = ["00-00-00-00-00-00", "00:00:00:00:00:00", "0000.0000.0000"];
+        for &variant in variants.iter() {
+            assert_eq!(parse(variant).unwrap(), MacAddress(0));
+        }
+    }
+
 
     #[test]
     fn test_parse_invalid_length() {
         let mac_str = "11:22:33:44:55";
         assert_eq!(parse(mac_str), Err(MacAddressParseError::InvalidLength));
+    }
+
+
+    #[test]
+    fn test_invalid_characters() {
+        assert!(parse("gg:gg:gg:gg:gg:gg").is_err());
+    }
+
+    #[test]
+    fn test_unicast_multicast() {
+        let unicast_mac = parse("02:00:00:00:00:00").unwrap();
+        let multicast_mac = parse("01:00:00:00:00:00").unwrap();
+        assert!(!is_multicast(unicast_mac));
+        assert!(is_multicast(multicast_mac));
+    }
+
+    #[test]
+    fn test_local_universal() {
+        let local_mac = parse("02:00:00:00:00:00").unwrap();
+        let universal_mac = parse("00:00:00:00:00:00").unwrap();
+        assert!(is_local(local_mac));
+        assert!(!is_local(universal_mac));
     }
 
     #[test]
