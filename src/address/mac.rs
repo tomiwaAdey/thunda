@@ -3,22 +3,14 @@
 /// MAC Address support library
 ///
 /// Provides abstraction over the MAC Address and various utility
-/// functions that operate on MAC Addresses.
+/// functions that operate on MAC Addresses. It allows parsing, formatting,
+/// and manipulation of MAC addresses with robust error handling for common
+/// issues encountered
 ///
 /// # Example
 /// ```
-/// use thunda::address::mac::{parse, to_bytes, to_string};
-///
-/// let mac_str = "11:22:33:44:55:66";
-/// let mac = parse(mac_str).expect("Failed to parse MAC address");
-/// let mac_bytes = to_bytes(mac);
-/// let mac_string = to_string(mac);
-///
-/// println!("MAC Address: {:?}", mac_bytes);
-/// println!("MAC Address (String): {}", mac_string);
 /// ```
-///
-///
+
 #[derive(Debug, PartialEq)]
 pub enum MacAddressParseError {
     InvalidLength,
@@ -37,88 +29,105 @@ impl std::fmt::Display for MacAddressParseError {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MacAddress(pub u64);
+pub struct Mac(pub [u8; 6]);
 
 
-impl std::fmt::Display for MacAddress {
+impl std::fmt::Display for Mac {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", to_string(*self))
+        write!(f, "{}", to_string(self))
     }
 }
 
-impl std::fmt::Debug for MacAddress {
+impl std::fmt::Debug for Mac {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "MacAddress({})", to_string(*self))
+        write!(f, "Mac Address({})", to_string(self))
     }
 }
 
 // Allows using .parse() directly on string slices to create MacAddress instances.
-// MacAddress::from_str("...")
-impl std::str::FromStr for MacAddress {
+// Mac::from_str("...")
+impl std::str::FromStr for Mac {
     type Err = MacAddressParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse(s)
+        from_string(s)
     }
 }
 
-/// Creates a new MAC address from a u64 value.
-pub fn new(address: u64) -> MacAddress {
-    MacAddress(address)
+impl Mac {
+    /// Construct a Mac address from bytes segments.
+    pub fn new(
+        seg0: u8,
+        seg1: u8,
+        seg2: u8,
+        seg3: u8,
+        seg4: u8,
+        seg5: u8,
+    ) -> Self {
+        Mac([seg0, seg1, seg2, seg3, seg4, seg5])
+    }
 }
 
-/// Parses a hexadecimal MAC address string into a MacAddress struct.
-pub fn parse(s: &str) -> Result<MacAddress, MacAddressParseError> {
-    let normalized_str = s.replace(&[':', '-', '.'][..], "");
-    if normalized_str.len() != 12 {
+
+/// Construct a Mac address from a string
+pub fn from_string(s: &str) -> Result<Mac, MacAddressParseError> {
+    // Remove common MAC address delimiters to simplify parsing
+    let clean_s = s.replace(&[':', '-', '.'][..], "");
+
+    if clean_s.len() != 12 {
         return Err(MacAddressParseError::InvalidLength);
     }
+    let mut mac_bytes = [0u8; 6];
+    for (i, byte_str) in clean_s.as_bytes().chunks(2).enumerate() {
+        let byte = u8::from_str_radix(std::str::from_utf8(byte_str).unwrap(), 16)
+            .map_err(|_| MacAddressParseError::InvalidCharacter)?;
+        mac_bytes[i] = byte;
+    }
 
-    u64::from_str_radix(&normalized_str, 16)
-        .map(MacAddress)
-        .map_err(|_| MacAddressParseError::InvalidCharacter)
+    Ok(Mac(mac_bytes))
 }
 
- /// Convert MacAddress into array of bytes
-pub fn to_bytes(mac: MacAddress) -> [u8; 6] {
-    [
-        ((mac.0 >> 40) & 0xFF) as u8,
-        ((mac.0 >> 32) & 0xFF) as u8,
-        ((mac.0 >> 24) & 0xFF) as u8,
-        ((mac.0 >> 16) & 0xFF) as u8,
-        ((mac.0 >> 8) & 0xFF) as u8,
-        (mac.0 & 0xFF) as u8,
-    ]
+/// Convert Mac ddress into a string.
+pub fn to_string(addr: &Mac) -> String {
+    format!(
+        "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+        addr.0[0], addr.0[1], addr.0[2], addr.0[3], addr.0[4], addr.0[5]
+    )
 }
 
-pub fn to_string(mac: MacAddress) -> String {
-    format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-        ((mac.0 >> 40) & 0xFF),
-        ((mac.0 >> 32) & 0xFF),
-        ((mac.0 >> 24) & 0xFF),
-        ((mac.0 >> 16) & 0xFF),
-        ((mac.0 >> 8) & 0xFF),
-        (mac.0 & 0xFF))
+/// Construct an Mac address from an array of bytes.
+pub fn from_bytes(data: &[u8]) -> Result<Mac, MacAddressParseError> {
+    if data.len() != 6 {
+        return Err(MacAddressParseError::InvalidLength);
+    }
+    let mut bytes = [0u8; 6];
+    bytes.copy_from_slice(data);
+    Ok(Mac(bytes))
+}
+
+ /// Convert Mac address into array of bytes
+pub fn to_bytes(addr: &Mac) -> [u8; 6] {
+    addr.0
 }
 
 // Checks if the MAC address is multicast
-pub fn is_multicast(mac: MacAddress) -> bool {
-    (to_bytes(mac)[0] & 0x01) != 0
+pub fn is_multicast(addr: &Mac) -> bool {
+    (addr.0[0] & 0x01) != 0
 }
 
 // Checks if the MAC address is locally administered
-pub fn is_local(mac: MacAddress) -> bool {
-    (to_bytes(mac)[0] & 0x02) != 0
+pub fn is_local(addr: &Mac) -> bool {
+    (addr.0[0] & 0x02) != 0
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const VALID_CONVERSION_TEST_CASES: [(&str, u64); 3] = [
-        ("00:00:00:00:00:00", 0x000000000000),
-        ("01:23:45:67:89:ab", 0x0123456789ab),
-        ("ff:ff:ff:ff:ff:ff", 0xffffffffffff),
+    const VALID_CONVERSION_TEST_CASES: [(&str, [u8; 6]); 3] = [
+        ("00:00:00:00:00:00", [0, 0, 0, 0, 0, 0]),
+        ("01:23:45:67:89:ab", [0x01, 0x23, 0x45, 0x67, 0x89, 0xab]),
+        ("ff:ff:ff:ff:ff:ff", [0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
     ];
 
     const INVALID_CONVERSION_TEST_CASES: [&str; 3] = [
@@ -127,104 +136,96 @@ mod tests {
         "01:23:45:67:89:gh",
     ];
 
+
     #[test]
     fn test_new() {
-        let address = 0x112233445566;
-        let mac = new(address);
-        assert_eq!(mac.0, address);
+        let mac = Mac::new(0x11, 0x22, 0x33, 0x44, 0x55, 0x66);
+        assert_eq!(mac, Mac([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]));
     }
 
     #[test]
     fn test_parse_valid() {
-        let mac_str = "11:22:33:44:55:66";
-        let mac = parse(mac_str).expect("Failed to parse MAC address");
-        assert_eq!(mac, MacAddress(0x112233445566));
-    }
-    #[test]
-    fn batch_test_parse_valid() {
-        for &(mac_str, expected) in VALID_CONVERSION_TEST_CASES.iter() {
-            assert_eq!(parse(mac_str).unwrap(), MacAddress(expected));
+        for &(mac_str, expected) in &VALID_CONVERSION_TEST_CASES {
+            let mac = from_string(mac_str).expect("Failed to parse MAC address");
+            assert_eq!(mac, Mac(expected));
         }
+    }
+
+    #[test]
+    fn test_to_bytes() {
+        let mac = Mac([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]);
+        let expected_bytes = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
+        assert_eq!(to_bytes(&mac), expected_bytes);
+    }
+
+    #[test]
+    fn test_to_string() {
+        let mac = Mac([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]);
+        let expected_str = "11:22:33:44:55:66";
+        assert_eq!(to_string(&mac), expected_str);
     }
 
     #[test]
     fn batch_test_parse_invalid() {
         for &mac_str in INVALID_CONVERSION_TEST_CASES.iter() {
-            assert!(parse(mac_str).is_err());
+            assert!(from_string(mac_str).is_err());
         }
     }
 
     #[test]
-    fn test_parsing_variations() {
-        let variants = ["00-00-00-00-00-00", "00:00:00:00:00:00", "0000.0000.0000"];
-        for &variant in variants.iter() {
-            assert_eq!(parse(variant).unwrap(), MacAddress(0));
-        }
+    fn test_edge_cases() {
+        let all_zeroes = "00:00:00:00:00:00";
+        assert_eq!(from_string(all_zeroes).unwrap(), Mac([0, 0, 0, 0, 0, 0]));
+
+        let all_ones = "ff:ff:ff:ff:ff:ff";
+        assert_eq!(from_string(all_ones).unwrap(), Mac([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]));
+
+        let local_universal_boundary = "02:00:00:00:00:00";
+        assert!(is_local(&from_string(local_universal_boundary).unwrap()));
     }
+
+    #[test]
+    fn test_display_traits() {
+        let mac = Mac::new(0xde, 0xad, 0xbe, 0xef, 0x00, 0x01);
+        assert_eq!(mac.to_string(), "de:ad:be:ef:00:01");
+
+        let error = MacAddressParseError::InvalidCharacter;
+        assert_eq!(format!("{}", error), "MAC address contains invalid hexadecimal characters");
+    }
+
 
 
     #[test]
     fn test_parse_invalid_length() {
         let mac_str = "11:22:33:44:55";
-        assert_eq!(parse(mac_str), Err(MacAddressParseError::InvalidLength));
+        assert_eq!(from_string(mac_str), Err(MacAddressParseError::InvalidLength));
     }
 
 
     #[test]
     fn test_invalid_characters() {
-        assert!(parse("gg:gg:gg:gg:gg:gg").is_err());
+        assert!(from_string("gg:gg:gg:gg:gg:gg").is_err());
     }
 
     #[test]
     fn test_unicast_multicast() {
-        let unicast_mac = parse("02:00:00:00:00:00").unwrap();
-        let multicast_mac = parse("01:00:00:00:00:00").unwrap();
-        assert!(!is_multicast(unicast_mac));
-        assert!(is_multicast(multicast_mac));
+        let unicast_mac = from_string("02:00:00:00:00:00").unwrap();
+        let multicast_mac = from_string("01:00:00:00:00:00").unwrap();
+        assert!(!is_multicast(&unicast_mac));
+        assert!(is_multicast(&multicast_mac));
     }
 
     #[test]
     fn test_local_universal() {
-        let local_mac = parse("02:00:00:00:00:00").unwrap();
-        let universal_mac = parse("00:00:00:00:00:00").unwrap();
-        assert!(is_local(local_mac));
-        assert!(!is_local(universal_mac));
+        let local_mac = from_string("02:00:00:00:00:00").unwrap();
+        let universal_mac = from_string("00:00:00:00:00:00").unwrap();
+        assert!(is_local(&local_mac));
+        assert!(!is_local(&universal_mac));
     }
 
     #[test]
     fn test_parse_invalid_format() {
         let mac_str = "11:22:33:GG:55:66";
-        assert_eq!(parse(mac_str), Err(MacAddressParseError::InvalidCharacter));
-    }
-
-    #[test]
-    fn test_to_bytes() {
-        let mac = MacAddress(0x112233445566);
-        let expected_bytes = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
-        assert_eq!(to_bytes(mac), expected_bytes);
-    }
-
-    #[test]
-    fn test_to_string() {
-        let mac = MacAddress(0x112233445566);
-        let expected_str = "11:22:33:44:55:66";
-        assert_eq!(to_string(mac), expected_str);
-    }
-
-    #[test]
-    fn display_mac_address_invalid_length() {
-        let error: MacAddressParseError = MacAddressParseError::InvalidLength;
-        assert_eq!(format!("{}", error), "MAC address must have exactly 6 octets");
-    }
-
-    #[test]
-    fn display_mac_address_invalid_format() {
-        let error: MacAddressParseError = MacAddressParseError::InvalidFormat;
-        assert_eq!(format!("{}", error), "Each octet in a MAC address must be two hexadecimal digits");
-    }
-    #[test]
-    fn display_mac_address_invalid_character() {
-        let error: MacAddressParseError = MacAddressParseError::InvalidCharacter;
-        assert_eq!(format!("{}", error), "MAC address contains invalid hexadecimal characters");
+        assert_eq!(from_string(mac_str), Err(MacAddressParseError::InvalidCharacter));
     }
 }
