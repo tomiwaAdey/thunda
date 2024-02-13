@@ -21,6 +21,8 @@ actix = "0.13"
 tokio-util = { version = "0.6", features = ["compat"] } # For working with AsyncRead/AsyncWrite utilities
 log = "0.4"
 bytes = "1.1"
+futures = "0.3"
+actix-rt = "2.9.0"
 
 [build-dependencies]
 cc = "1.0"

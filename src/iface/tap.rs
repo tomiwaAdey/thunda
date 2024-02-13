@@ -4,6 +4,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::io::{self, Error};
 use std::os::unix::io::AsRawFd;
 use tokio::fs::OpenOptions as TokioOpenOptions;
+use futures::Future;
+use std::pin::Pin;
 
 struct OpenOptions {
     read: bool,
@@ -42,36 +44,45 @@ pub struct Tap {
     device: Option<File>,
 }
 
+trait TapDevice {
+    fn new() -> Self;
+    fn read<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + 'a>>;
+    fn write<'a>(&'a mut self, data: &'a [u8]) -> Pin<Box<dyn Future<Output = io::Result<()>> + Send + 'a>>;
+}
+
 impl Actor for Tap {
     type Context = Context<Self>;
 }
 
-impl Tap {
-    pub fn new() -> Self {
+impl TapDevice for Tap {
+    fn new() -> Self {
         Self { device: None }
     }
-
     // Read data from the TAP interface asynchronously
-    async fn read_data(&mut self) -> io::Result<Vec<u8>> {
-        if let Some(file) = &mut self.device {
-            let mut buf = vec![0u8; 4096]; // Adjust buffer size as needed
-            let n = file.read(&mut buf).await?;
-            buf.truncate(n);
-            Ok(buf)
-        } else {
-            Err(io::Error::new(io::ErrorKind::NotFound, "TAP device not opened"))
-        }
+    fn read<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + 'a>> {
+        Box::pin(async move {
+            if let Some(file) = &mut self.device {
+                let mut buf = vec![0u8; 4096]; // Adjust buffer size as needed
+                let n = file.read(&mut buf).await?;
+                buf.truncate(n);
+                Ok(buf)
+            } else {
+                Err(io::Error::new(io::ErrorKind::NotFound, "TAP device not opened"))
+            }
+        })
+    }
+    // Write data to the TAP interface asynchronously
+    fn write<'a>(&'a mut self, data: &'a [u8]) -> Pin<Box<dyn Future<Output = io::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            if let Some(file) = &mut self.device {
+                file.write_all(data).await?;
+                Ok(())
+            } else {
+                Err(io::Error::new(io::ErrorKind::NotFound, "TAP device not opened"))
+            }
+        })
     }
 
-    // Write data to the TAP interface asynchronously
-    async fn write_data(&mut self, data: &[u8]) -> io::Result<()> {
-        if let Some(file) = &mut self.device {
-            file.write_all(data).await?;
-            Ok(())
-        } else {
-            Err(io::Error::new(io::ErrorKind::NotFound, "TAP device not opened"))
-        }
-    }
 }
 
 // OpenTap message for opening the TAP device
@@ -121,3 +132,26 @@ impl Handler<OpenTap> for Tap {
         })
     }
 }
+
+
+struct MockTap {
+    read_data: Vec<u8>,
+    write_data: Vec<u8>,
+}
+
+impl TapDevice for MockTap {
+    fn new() -> Self {
+        Self { read_data: vec![], write_data: vec![] }
+    }
+
+    fn read<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + 'a>> {
+        let data = self.read_data.clone();
+        Box::pin(async move { Ok(data) })
+    }
+
+    fn write<'a>(&'a mut self, data: &'a [u8]) -> Pin<Box<dyn Future<Output = io::Result<()>> + Send + 'a>> {
+        let data = data.to_vec();
+        Box::pin(async move { Ok(()) })
+    }
+}
+
