@@ -1,4 +1,4 @@
-#[cfg(feature = "tap")]
+// #[cfg(feature = "tap")]
 mod tap;
 
 #[cfg(feature = "af_xdp")]
