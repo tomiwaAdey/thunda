@@ -8,6 +8,8 @@ use tokio::fs::OpenOptions as TokioOpenOptions;
 use futures::Future;
 use std::pin::Pin;
 
+
+/// Options for opening a TAP device.
 struct OpenOptions {
     read: bool,
     write: bool,
@@ -18,6 +20,7 @@ impl OpenOptions {
         Self { read: true, write: true }
     }
 
+    /// Opens a TAP device with the specified options asynchronously.
     #[allow(unsafe_code)]
     async fn open(&self) -> io::Result<File> {
         let path = "/dev/net/tun";
@@ -31,6 +34,7 @@ impl OpenOptions {
 }
 
 pub trait DeviceOpener {
+    /// Opens a device and returns a Future resolving to the opened file.
     fn open(&self) -> Pin<Box<dyn Future<Output = io::Result<File>> + Send>>;
 }
 
@@ -71,6 +75,16 @@ impl Tap {
             device: Arc::new(Mutex::new(None)),
          }
     }
+
+    // Todo
+    // Use these mthds to remove mutex
+    // fn set_device(&mut self, device: File) {
+    //     self.device = Some(device);
+    // }
+
+    // fn clear_device(&mut self) {
+    //     self.device = None;
+    // }
 }
 
 // Message for opening the TAP device
@@ -87,6 +101,7 @@ impl Message for OpenTap {
 impl Handler<OpenTap> for Tap {
     type Result = ResponseFuture<Result<(), io::Error>>;
 
+    /// Handles the OpenTap message to open a TAP device asynchronously.
     fn handle(&mut self, msg: OpenTap, ctx: &mut Context<Self>) -> Self::Result {
         let device_future = msg.opener.open();
         let addr: Addr<Tap> = ctx.address(); // Get actor's address
@@ -114,6 +129,7 @@ impl Message for UpdateDevice {
 impl Handler<UpdateDevice> for Tap {
     type Result = Result<(), io::Error>;
 
+    /// Updates the internal state with the newly opened TAP device.
     fn handle(&mut self, msg: UpdateDevice, _: &mut Context<Self>) -> Self::Result {
         let mut device = self.device.lock().map_err(|_| io::Error::new(io::ErrorKind::Other, "Mutex lock poisoned"))?;
         *device = Some(msg.device);
