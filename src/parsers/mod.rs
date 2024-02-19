@@ -9,4 +9,5 @@ pub mod packet;
 pub enum ParsingError {
     BufferUnderflow,
     UnsupportedEthertype,
+    InvalidPacketLength
 }

@@ -1,6 +1,6 @@
 // src/parsers/packet.rs
 use actix::prelude::*;
-use bytes::{BytesMut, Buf};
+use bytes::BytesMut;
 use std::result::Result;
 use crate::parsers::{ethernet, ipv4, arp, ipv6};
 
@@ -23,7 +23,7 @@ impl Handler<ParsePacket> for Packet {
 
     fn handle(&mut self, msg: ParsePacket, _: &mut Context<Self>) -> Self::Result {
         let packet = msg.0;
-        let eth_frame = ethernet::parse(&packet)
+        let eth_frame: ethernet::EthernetFrame = ethernet::parse(&packet)
                         .unwrap();
 
         match eth_frame.ethertype {

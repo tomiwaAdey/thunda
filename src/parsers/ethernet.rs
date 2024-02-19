@@ -2,9 +2,14 @@
 use bytes::BytesMut;
 use crate::parsers::ParsingError;
 
+/// EtherType
+///
+/// https://en.wikipedia.org/wiki/EtherType
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_ARP: u16 = 0x0806;
 pub const ETHERTYPE_IPV6: u16 = 0x86DD;
+
+
 pub const ETHER_MIN_LENGTH: usize = 14;
 
 
