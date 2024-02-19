@@ -22,29 +22,36 @@ impl Handler<ParsePacket> for Packet {
     // type Result = ResponseActFuture<Self, Result<ParsedPacket, ParsingError>>;
 
     fn handle(&mut self, msg: ParsePacket, _: &mut Context<Self>) -> Self::Result {
-        let packet = msg.0;
-        let eth_frame: ethernet::EthernetFrame = ethernet::parse(&packet)
-                        .unwrap();
+    //     let packet = msg.0;
+    //     let eth_frame: ethernet::EthernetFrame = EthernetFrame{ &packet };
 
-        match eth_frame.ethertype {
-            ethernet::ETHERTYPE_IPV4 => {
-                // Handle IPv4 packet
-                let _ipv4_packet = ipv4::parse(&eth_frame.payload).unwrap();
-            },
-            ethernet::ETHERTYPE_IPV6 => {
-                // Handle IPv4 packet
-                let _ipv6_packet = ipv6::parse(&eth_frame.payload).unwrap();
-            },
-            ethernet::ETHERTYPE_ARP => {
-                // Handle ARP packet
-                let _arp_packet = arp::parse(&eth_frame.payload).unwrap();
-            },
-            _ => {
-                // Handle unsupported ethertype
-            },
-        }
+    //     // Decide whether to drop by passing systems mac to a drop method
+    //     // this will just pass the ethernet packet to a router/packet.rs actor
 
-        MessageResult(Ok(()))
+
+    //     match eth_frame.ethertype {
+    //         ethernet::ETHERTYPE_IPV4 => {
+    //             // Handle IPv4 packet
+    //             let _ipv4_packet = ipv4::IPv4Packet::new(&eth_frame.payload);
+    //             // Decide whethere to drop
+    //             // pass original ethernet frame to a route/packet.rs actor
+    //         },
+    //         ethernet::ETHERTYPE_IPV6 => {
+    //             // Handle IPv4 packet
+    //             let _ipv6_packet = ipv6::parse(&eth_frame.payload).unwrap();
+    //             // pass original ethernet frame to a route/packet.rs actor
+    //         },
+    //         ethernet::ETHERTYPE_ARP => {
+    //             // Handle ARP packet
+    //             let _arp_packet = arp::parse(&eth_frame.payload).unwrap();
+    //             // pass original ethernet frame to a route/packet.rs actor
+    //         },
+    //         _ => {
+    //             // Handle unsupported ethertype
+    //         },
+    //     }
+
+    //     MessageResult(Ok(()))
+        todo!()
     }
 }
-

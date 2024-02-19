@@ -51,10 +51,60 @@ impl IPv4 {
         IPv4([seg0, seg1, seg2, seg3])
     }
 
-}
+    pub fn to_string(&self) -> String {
+        return format!("{}.{}.{}.{}", self.0[0], self.0[1], self.0[2], self.0[3]);
+    }
 
-pub fn to_string(addr: &IPv4) -> String {
-    return format!("{}.{}.{}.{}", addr.0[0], addr.0[1], addr.0[2], addr.0[3]);
+    /// Return an IPv4 address as a single u32.
+    pub fn to_u32(&self) -> u32 {
+        u32::from_be_bytes(self.0)
+    }
+
+    /// Return an IPv4 address as a sequence of octets, in big-endian.
+    pub fn to_bytes(&self) -> [u8; ADDR_SIZE] {
+        self.0
+    }
+
+    /// Query if the address is a unicast address.
+    pub fn is_unicast(&self) -> bool {
+        !self.is_broadcast() && !self.is_multicast() && !self.is_unspecified()
+    }
+
+    /// Query if the address is the broadcast address.
+    pub fn is_broadcast(&self) -> bool {
+        self.0 == [255, 255, 255, 255]
+    }
+
+    /// Query if the address is a multicast address.
+    pub fn is_multicast(&self) -> bool {
+        self.0[0] & 0xf0 == 224
+    }
+
+    /// Query if the address is unspecified.
+    pub fn is_unspecified(&self) -> bool {
+        self.0[0] == 0
+    }
+
+    /// Query if the address is link-local.
+    pub fn is_link_local(&self) -> bool {
+        self.0[0] == 169 && self.0[1] == 254
+    }
+
+    /// Query if the address is loopback.
+    pub fn is_loopback(&self) -> bool {
+        self.0[0] == 127
+    }
+
+    /// Query if the ddress is a private address.
+    pub fn is_private(&self) -> bool {
+        // 10.0.0.0 to 10.255.255.255
+        (self.0[0] == 10) ||
+        // 172.16.0.0 to 172.31.255.255
+        (self.0[0] == 172 && (self.0[1] >= 16 && self.0[1] <= 31)) ||
+        // 192.168.0.0 to 192.168.255.255
+        (self.0[0] == 192 && self.0[1] == 168)
+    }
+
 }
 
 pub fn from_string(addr_str: &str) -> Result<IPv4, IPv4AddressError> {
@@ -84,72 +134,22 @@ pub fn from_bytes(data: &[u8]) -> Result<IPv4, IPv4AddressError> {
     Ok(IPv4(bytes))
 }
 
-/// Return an IPv4 address as a single u32.
-pub fn to_u32(addr: &IPv4) -> u32 {
-    u32::from_be_bytes(addr.0)
-}
-
 /// Constructs an IPv4 address from a u32.
 pub fn from_u32(addr: u32) -> IPv4 {
     IPv4(addr.to_be_bytes())
 }
 
-/// Return an IPv4 address as a sequence of octets, in big-endian.
-pub fn to_bytes(addr: &IPv4) -> [u8; ADDR_SIZE] {
-    addr.0
-}
-
-/// Query if the address is a unicast address.
-pub fn is_unicast(addr: &IPv4) -> bool {
-    !is_broadcast(addr) && !is_multicast(addr) && !is_unspecified(addr)
-}
-
-/// Query if the address is the broadcast address.
-pub fn is_broadcast(addr: &IPv4) -> bool {
-    addr.0 == [255, 255, 255, 255]
-}
-
-/// Query if the address is a multicast address.
-pub fn is_multicast(addr: &IPv4) -> bool {
-    addr.0[0] & 0xf0 == 224
-}
-
-/// Query if the address is unspecified.
-pub fn is_unspecified(addr: &IPv4) -> bool {
-    addr.0[0] == 0
-}
-
-/// Query if the address is link-local.
-pub fn is_link_local(addr: &IPv4) -> bool {
-    addr.0[0] == 169 && addr.0[1] == 254
-}
-
-/// Query if the address is loopback.
-pub fn is_loopback(addr: &IPv4) -> bool {
-    addr.0[0] == 127
-}
-
-/// Query if the ddress is a private address.
-pub fn is_private(addr: &IPv4) -> bool {
-    // 10.0.0.0 to 10.255.255.255
-    (addr.0[0] == 10) ||
-    // 172.16.0.0 to 172.31.255.255
-    (addr.0[0] == 172 && (addr.0[1] >= 16 && addr.0[1] <= 31)) ||
-    // 192.168.0.0 to 192.168.255.255
-    (addr.0[0] == 192 && addr.0[1] == 168)
-}
-
 /// Display IPv4 address as text representation
 impl std::fmt::Display for IPv4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", to_string(self))
+        write!(f, "{}", self.to_string())
     }
 }
 
 /// Debug display IPv4 address
 impl std::fmt::Debug for IPv4 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", to_string(self))
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -208,52 +208,52 @@ mod tests {
     #[test]
     fn test_to_bytes() {
         let ipv4 = IPv4::new(192, 168, 1, 1);
-        assert_eq!(to_bytes(&ipv4), [192, 168, 1, 1]);
+        assert_eq!(ipv4.to_bytes(), [192, 168, 1, 1]);
     }
     #[test]
     fn test_is_unicast() {
         let ipv4 = IPv4::new(192, 168, 1, 1);
-        assert!(is_unicast(&ipv4));
+        assert!(ipv4.is_unicast());
     }
 
     #[test]
     fn test_is_broadcast() {
         let ipv4 = IPv4::new(255, 255, 255, 255);
-        assert!(is_broadcast(&ipv4));
+        assert!(ipv4.is_broadcast());
         let ipv4_normal = IPv4::new(192, 168, 1, 1);
-        assert!(!is_broadcast(&ipv4_normal));
+        assert!(!ipv4_normal.is_broadcast());
     }
 
     #[test]
     fn test_is_multicast() {
         let ipv4_multicast = IPv4::new(224, 0, 0, 1);
-        assert!(is_multicast(&ipv4_multicast));
+        assert!(ipv4_multicast.is_multicast());
         let ipv4_normal = IPv4::new(192, 168, 1, 1);
-        assert!(!is_multicast(&ipv4_normal));
+        assert!(!ipv4_normal.is_multicast());
     }
 
     #[test]
     fn test_is_unspecified() {
         let ipv4 = IPv4::new(0, 0, 0, 0);
-        assert!(is_unspecified(&ipv4));
+        assert!(ipv4.is_unspecified());
         let ipv4_normal = IPv4::new(192, 168, 1, 1);
-        assert!(!is_unspecified(&ipv4_normal));
+        assert!(!ipv4_normal.is_unspecified());
     }
 
     #[test]
     fn test_is_link_local() {
         let ipv4_link_local = IPv4::new(169, 254, 0, 1);
-        assert!(is_link_local(&ipv4_link_local));
+        assert!(ipv4_link_local.is_link_local());
         let ipv4_normal = IPv4::new(192, 168, 1, 1);
-        assert!(!is_link_local(&ipv4_normal));
+        assert!(!ipv4_normal.is_link_local());
     }
 
     #[test]
     fn test_is_loopback() {
         let ipv4_loopback = IPv4::new(127, 0, 0, 1);
-        assert!(is_loopback(&ipv4_loopback));
+        assert!(ipv4_loopback.is_loopback());
         let ipv4_normal = IPv4::new(192, 168, 1, 1);
-        assert!(!is_loopback(&ipv4_normal));
+        assert!(!ipv4_normal.is_loopback());
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_to_u32() {
         let addr = IPv4::new(192, 168, 1, 1);
-        let addr_u32 = to_u32(&addr);
+        let addr_u32 = addr.to_u32();
         assert_eq!(addr_u32, 0xC0A80101); // 192.168.1.1 in hexadecimal
     }
 
@@ -292,18 +292,18 @@ mod tests {
     fn test_is_private() {
         // Test for a private address in the 10.0.0.0/8 range
         let private_addr_10 = IPv4::new(10, 0, 0, 1);
-        assert!(is_private(&private_addr_10));
+        assert!(private_addr_10.is_private());
 
         // Test for a private address in the 172.16.0.0/12 range
         let private_addr_172 = IPv4::new(172, 16, 0, 1);
-        assert!(is_private(&private_addr_172));
+        assert!(private_addr_172.is_private());
 
         // Test for a private address in the 192.168.0.0/16 range
         let private_addr_192 = IPv4::new(192, 168, 0, 1);
-        assert!(is_private(&private_addr_192));
+        assert!(private_addr_192.is_private());
 
         // Test for a public address (not private)
         let public_addr = IPv4::new(8, 8, 8, 8); // Google DNS for example
-        assert!(!is_private(&public_addr));
+        assert!(!public_addr.is_private());
     }
 }
