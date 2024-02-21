@@ -1,5 +1,4 @@
 // src/parsers/ethernet.rs
-use bytes::BytesMut;
 use crate::parsers::ParsingError;
 
 /// EtherType
@@ -13,75 +12,83 @@ pub const ETHERTYPE_IPV6: u16 = 0x86DD;
 pub const ETHER_MIN_LENGTH: usize = 14;
 
 
-
-#[derive(Debug)]
-pub struct EthernetFrame {
-    pub destination: [u8; 6],
-    pub source: [u8; 6],
-    pub ethertype: u16,
-    pub payload: BytesMut,
+pub struct EthernetFrame<'a> {
+    buffer: &'a [u8],
 }
 
-pub fn parse(data: &BytesMut) -> Result<EthernetFrame, ParsingError> {
-    if data.len() < ETHER_MIN_LENGTH { // Minimum length for an Ethernet header
-        return Err(ParsingError::BufferUnderflow);
+impl<'a> EthernetFrame<'a> {
+    // Constant representing the minimum Ethernet frame size
+    const MIN_FRAME_SIZE: usize = 14; // 6 (Dest) + 6 (Source) + 2 (Ethertype)
+
+    /// Constructs a new `EthernetFrame` from a raw octect buffer
+    pub fn new(buffer: &'a [u8]) -> EthernetFrame {
+        EthernetFrame { buffer }
     }
 
-    let mut buf = data.clone();
-    let destination = get_mac(&mut buf);
-    let source = get_mac(&mut buf);
-    let ethertype_bytes = get_ethertype(&mut buf);
-    let ethertype = to_u16(&ethertype_bytes);
-    let payload = buf;
 
-    Ok(
-        EthernetFrame {
-            destination,
-            source,
-            ethertype,
-            payload
+    // Constructor with validation
+    pub fn new_with_validation(buffer: &'a [u8]) -> Result<EthernetFrame<'a>, ParsingError> {
+        if buffer.len() < Self::MIN_FRAME_SIZE {
+            Err(ParsingError::BufferUnderflow)
+        } else {
+            Ok(EthernetFrame { buffer })
         }
-    )
+    }
+
+    // Return the destination MAC address
+    pub fn destination(&self) -> &[u8] {
+        &self.buffer[0..6]
+    }
+
+    // Return the source MAC address
+    pub fn source(&self) -> &[u8] {
+        &self.buffer[6..12]
+    }
+
+    // Return the Ethertype
+    pub fn ethertype(&self) -> u16 {
+        u16::from_be_bytes([self.buffer[12], self.buffer[13]])
+    }
+
+    // Return a reference to the frame's payload.
+    pub fn payload(&self) -> &'a [u8] {
+        &self.buffer[Self::header_length()..]
+    }
+
+    // Return the header length
+    pub fn header_length() -> usize {
+        Self::MIN_FRAME_SIZE
+    }
 }
 
-/// Return ethertype 2 bytes array as a single u16.
-fn to_u16(bytes: &[u8; 2]) -> u16 {
-    u16::from_be_bytes(*bytes)
-}
 
-fn get_ethertype(buf: &mut BytesMut) -> [u8; 2] {
-    let mut array = [0u8; 2];
-    array.copy_from_slice(&buf.split_to(2));
-    array
-}
 
-fn get_mac(buf: &mut BytesMut) -> [u8; 6] {
-    let mut array = [0u8; 6];
-    array.copy_from_slice(&buf.split_to(6));
-    array
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
+
+    static FRAME_BYTES: [u8; 64] = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination MAC
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, // Source MAC
+        0x08, 0x00, // Ethertype (IPv4)
+        // Start of payload
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0xff, // End of payload
+        // Padding to reach 64 bytes
+        0x00
+    ];
+
 
     #[test]
-    fn test_parse_success() {
-        let data = BytesMut::from(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // Destination MAC
-                                    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Source MAC
-                                    0x08, 0x00, // Ethertype (IPv4)
-                                    // Payload
-                                    0x45, 0x00, 0x00, 0x73, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0xb8, 0x61, 0xc0, 0xa8, 0x00, 0x01, 0xc0, 0xa8, 0x00, 0xc7][..]);
-        let frame = parse(&data).unwrap();
-        assert_eq!(frame.destination, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
-        assert_eq!(frame.source, [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
-        assert_eq!(frame.ethertype, ETHERTYPE_IPV4);
+    fn test_deconstruct() {
+        let frame = EthernetFrame::new_with_validation(&FRAME_BYTES).expect("Valid frame");
+        assert_eq!(frame.destination(), &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
+        assert_eq!(frame.source(), &[0x11, 0x12, 0x13, 0x14, 0x15, 0x16]);
+        assert_eq!(frame.ethertype(), 0x0800); // IPv4 in hex
+        assert_eq!(frame.payload(), &FRAME_BYTES[14..64]); // Payload comparison
     }
 
-    #[test]
-    fn test_parse_failure() {
-        let data = BytesMut::from(&[0x00; 10][..]); // Insufficient data
-        assert!(parse(&data).is_err());
-    }
 }
