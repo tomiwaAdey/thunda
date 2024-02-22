@@ -68,3 +68,4 @@ pub mod io;
 pub mod protocols;
 pub mod address;
 pub mod parsers;
+pub mod assemblers;

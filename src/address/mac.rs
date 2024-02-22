@@ -34,13 +34,13 @@ pub struct Mac(pub [u8; 6]);
 
 impl std::fmt::Display for Mac {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", to_string(self))
+        write!(f, "{}", self.to_string())
     }
 }
 
 impl std::fmt::Debug for Mac {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Mac Address({})", to_string(self))
+        write!(f, "Mac Address({})", self.to_string())
     }
 }
 
@@ -66,6 +66,30 @@ impl Mac {
     ) -> Self {
         Mac([seg0, seg1, seg2, seg3, seg4, seg5])
     }
+
+    /// Convert Mac ddress into a string.
+    pub fn to_string(&self) -> String {
+        format!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
+        )
+    }
+
+    /// Convert Mac address into array of bytes
+    pub fn to_bytes(&self) -> [u8; 6] {
+        self.0
+    }
+
+    // Checks if the MAC address is multicast
+    pub fn is_multicast(&self) -> bool {
+        (self.0[0] & 0x01) != 0
+    }
+
+    // Checks if the MAC address is locally administered
+    pub fn is_local(&self) -> bool {
+        (self.0[0] & 0x02) != 0
+    }
+
 }
 
 
@@ -87,14 +111,6 @@ pub fn from_string(s: &str) -> Result<Mac, MacAddressParseError> {
     Ok(Mac(mac_bytes))
 }
 
-/// Convert Mac ddress into a string.
-pub fn to_string(addr: &Mac) -> String {
-    format!(
-        "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-        addr.0[0], addr.0[1], addr.0[2], addr.0[3], addr.0[4], addr.0[5]
-    )
-}
-
 /// Construct an Mac address from an array of bytes.
 pub fn from_bytes(data: &[u8]) -> Result<Mac, MacAddressParseError> {
     if data.len() != 6 {
@@ -103,21 +119,6 @@ pub fn from_bytes(data: &[u8]) -> Result<Mac, MacAddressParseError> {
     let mut bytes = [0u8; 6];
     bytes.copy_from_slice(data);
     Ok(Mac(bytes))
-}
-
- /// Convert Mac address into array of bytes
-pub fn to_bytes(addr: &Mac) -> [u8; 6] {
-    addr.0
-}
-
-// Checks if the MAC address is multicast
-pub fn is_multicast(addr: &Mac) -> bool {
-    (addr.0[0] & 0x01) != 0
-}
-
-// Checks if the MAC address is locally administered
-pub fn is_local(addr: &Mac) -> bool {
-    (addr.0[0] & 0x02) != 0
 }
 
 #[cfg(test)]
@@ -155,14 +156,14 @@ mod tests {
     fn test_to_bytes() {
         let mac = Mac([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]);
         let expected_bytes = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
-        assert_eq!(to_bytes(&mac), expected_bytes);
+        assert_eq!(mac.to_bytes(), expected_bytes);
     }
 
     #[test]
     fn test_to_string() {
         let mac = Mac([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]);
         let expected_str = "11:22:33:44:55:66";
-        assert_eq!(to_string(&mac), expected_str);
+        assert_eq!(mac.to_string(), expected_str);
     }
 
     #[test]
@@ -181,7 +182,8 @@ mod tests {
         assert_eq!(from_string(all_ones).unwrap(), Mac([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]));
 
         let local_universal_boundary = "02:00:00:00:00:00";
-        assert!(is_local(&from_string(local_universal_boundary).unwrap()));
+        let mac = from_string(local_universal_boundary).unwrap();
+        assert!(mac.is_local());
     }
 
     #[test]
@@ -211,16 +213,16 @@ mod tests {
     fn test_unicast_multicast() {
         let unicast_mac = from_string("02:00:00:00:00:00").unwrap();
         let multicast_mac = from_string("01:00:00:00:00:00").unwrap();
-        assert!(!is_multicast(&unicast_mac));
-        assert!(is_multicast(&multicast_mac));
+        assert!(!unicast_mac.is_multicast());
+        assert!(multicast_mac.is_multicast());
     }
 
     #[test]
     fn test_local_universal() {
         let local_mac = from_string("02:00:00:00:00:00").unwrap();
         let universal_mac = from_string("00:00:00:00:00:00").unwrap();
-        assert!(is_local(&local_mac));
-        assert!(!is_local(&universal_mac));
+        assert!(local_mac.is_local());
+        assert!(!universal_mac.is_local());
     }
 
     #[test]

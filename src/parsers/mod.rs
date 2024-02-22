@@ -1,11 +1,11 @@
-use crate::address::ipv4::IPv4AddressError;
-
 // src/parsers/mod.rs
 pub mod ethernet;
 pub mod ipv4;
 pub mod ipv6;
 pub mod arp;
 pub mod packet;
+
+use crate::address::ipv4::IPv4AddressError;
 
 
 #[derive(Debug, PartialEq)]
