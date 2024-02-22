@@ -10,8 +10,8 @@ use super::{ParsingError, ValidationError};
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct Key {
     pub id: u16,
-    pub src_addr: IPv4,
-    pub dst_addr: IPv4,
+    pub source: IPv4,
+    pub destination: IPv4,
     pub protocol: u8,
 }
 
@@ -84,7 +84,7 @@ impl<'a> IPv4Packet<'a> {
         self.buffer.get(start..start + 2)
             .and_then(|slice| slice.try_into().ok())
             .map(u16::from_be_bytes)
-            .ok_or(ParsingError::InvalidPacketLength) // You might choose a more specific error
+            .ok_or(ParsingError::InvalidPacketLength)
     }
 
     /// Return the Version
@@ -159,13 +159,13 @@ impl<'a> IPv4Packet<'a> {
     }
 
    /// Return the Source address.
-    pub fn src_addr(&self) -> Result<IPv4, ParsingError> {
+    pub fn source(&self) -> Result<IPv4, ParsingError> {
         address::ipv4::from_bytes(&self.buffer[12..16])
             .map_err(ParsingError::from)
     }
 
     /// Return the Destination address.
-    pub fn dst_addr(&self) -> Result<IPv4, ParsingError> {
+    pub fn destination(&self) -> Result<IPv4, ParsingError> {
         address::ipv4::from_bytes(&self.buffer[16..20])
             .map_err(ParsingError::from)
     }
@@ -196,8 +196,8 @@ impl<'a> IPv4Packet<'a> {
     pub fn key(&self) -> Result<Key, ParsingError> {
         Ok(Key {
             id: self.identification()?,
-            src_addr: self.src_addr()?,
-            dst_addr: self.dst_addr()?,
+            source: self.source()?,
+            destination: self.destination()?,
             protocol: self.protocol()
         })
     }
@@ -464,15 +464,15 @@ mod tests {
     }
 
     #[test]
-    fn test_src_addr_extraction() {
+    fn test_source_extraction() {
         let packet = IPv4Packet::new(VALID_IPV4_PACKET);
-        assert_eq!(packet.src_addr().unwrap(), IPv4::new(127, 0, 0, 1));
+        assert_eq!(packet.source().unwrap(), IPv4::new(127, 0, 0, 1));
     }
 
     #[test]
-    fn test_dst_addr_extraction() {
+    fn test_destination_extraction() {
         let packet = IPv4Packet::new(VALID_IPV4_PACKET);
-        assert_eq!(packet.dst_addr().unwrap(), IPv4::new(127, 0, 0, 1));
+        assert_eq!(packet.destination().unwrap(), IPv4::new(127, 0, 0, 1));
     }
 
     #[test]

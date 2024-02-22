@@ -6,6 +6,7 @@ pub mod arp;
 pub mod packet;
 
 use crate::address::ipv4::IPv4AddressError;
+use crate::address::ipv6::Ipv6AddressError;
 
 
 #[derive(Debug, PartialEq)]
@@ -14,6 +15,7 @@ pub enum ParsingError {
     UnsupportedEthertype,
     InvalidPacketLength,
     IPv4AddressError(IPv4AddressError),
+    IPv6AddressError(Ipv6AddressError),
     ValidationError(ValidationError),
     Default
 }
@@ -25,6 +27,7 @@ impl std::fmt::Display for ParsingError {
             ParsingError::UnsupportedEthertype => write!(f, "The ethertype is not supported"),
             ParsingError::InvalidPacketLength => write!(f, "The packet length is invalid"),
             ParsingError::IPv4AddressError(e) => write!(f, "{}", e), // Delegate to IPv4AddressError's Display impl
+            ParsingError::IPv6AddressError(e) => write!(f, "{}", e), // Delegate to IPv6AddressError's Display impl
             ParsingError::ValidationError(e) => write!(f, "{}", e),
             ParsingError::Default => write!(f, "An unspecified parsing error occurred")
         }
@@ -65,9 +68,15 @@ impl From<IPv4AddressError> for ParsingError {
     }
 }
 
+impl From<Ipv6AddressError> for ParsingError {
+    fn from(error: Ipv6AddressError) -> Self {
+        ParsingError::IPv6AddressError(error)
+    }
+}
+
+
 impl From<ValidationError> for ParsingError {
     fn from(error: ValidationError) -> Self {
         ParsingError::ValidationError(error)
     }
 }
-
