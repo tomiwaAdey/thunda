@@ -37,25 +37,25 @@ pub const IPV4_MAPPED_PREFIX: [u8; 12] =
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff];
 
 #[derive(Debug, PartialEq)]
-pub enum Ipv6AddressError {
+pub enum IPv6AddressError {
     InvalidLength,
     InvalidFormat,
     InvalidCharacter,
     UnsupportedOperation,
 }
 
-impl std::fmt::Display for Ipv6AddressError {
+impl std::fmt::Display for IPv6AddressError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            Ipv6AddressError::InvalidLength => write!(f, "IPv6 address must have exactly 16 octets"),
-            Ipv6AddressError::InvalidFormat => write!(f, "Invalid IPv6 address format"),
-            Ipv6AddressError::InvalidCharacter => write!(f, "IPv6 address contains invalid characters"),
-            Ipv6AddressError::UnsupportedOperation => write!(f, "Unsupported operation for IPv6 address"),
+            IPv6AddressError::InvalidLength => write!(f, "IPv6 address must have exactly 16 octets"),
+            IPv6AddressError::InvalidFormat => write!(f, "Invalid IPv6 address format"),
+            IPv6AddressError::InvalidCharacter => write!(f, "IPv6 address contains invalid characters"),
+            IPv6AddressError::UnsupportedOperation => write!(f, "Unsupported operation for IPv6 address"),
         }
     }
 }
 
-impl std::error::Error for Ipv6AddressError {}
+impl std::error::Error for IPv6AddressError {}
 
 
 /// A sixteen-octet (128 bits) IPv6 address.
@@ -116,16 +116,16 @@ impl IPv6 {
 }
 
 /// Construct an IPv6 address from a string
-pub fn from_string(addr_str: &str) -> Result<IPv6, Ipv6AddressError> {
+pub fn from_string(addr_str: &str) -> Result<IPv6, IPv6AddressError> {
     addr_str.parse::<std::net::Ipv6Addr>()
         .map(|addr| IPv6(addr.octets()))
-        .map_err(|_| Ipv6AddressError::InvalidFormat)
+        .map_err(|_| IPv6AddressError::InvalidFormat)
 }
 
 /// Construct an IPv6 address from an array of octets in big-endian
-pub fn from_bytes(data: &[u8]) -> Result<IPv6, Ipv6AddressError> {
+pub fn from_bytes(data: &[u8]) -> Result<IPv6, IPv6AddressError> {
     if data.len() != 16 {
-        return Err(Ipv6AddressError::InvalidLength);
+        return Err(IPv6AddressError::InvalidLength);
     }
 
     let mut bytes = [0u8; 16];
@@ -139,9 +139,9 @@ pub fn to_bytes(addr: &IPv6) -> &[u8] {
 }
 
 /// Construct an IPv6 address from an array of word segments in big-endian
-pub fn from_segments(data: &[u16]) -> Result<IPv6, Ipv6AddressError> {
+pub fn from_segments(data: &[u16]) -> Result<IPv6, IPv6AddressError> {
     if data.len() != 8 {
-        return Err(Ipv6AddressError::InvalidLength);
+        return Err(IPv6AddressError::InvalidLength);
     }
     let mut bytes = [0u8; 16];
     for (i, segment) in data.iter().enumerate() {
@@ -486,7 +486,7 @@ mod tests {
     #[test]
     fn test_from_bytes_invalid_length() {
         let bytes = [0x20, 0x01]; // Invalid length
-        assert_eq!(from_bytes(&bytes), Err(Ipv6AddressError::InvalidLength));
+        assert_eq!(from_bytes(&bytes), Err(IPv6AddressError::InvalidLength));
     }
 
     #[test]
@@ -494,7 +494,7 @@ mod tests {
         let segments_short = [0x2001, 0x0db8]; // Invalid length: only 2 segments
         assert_eq!(
             from_segments(&segments_short),
-            Err(Ipv6AddressError::InvalidLength)
+            Err(IPv6AddressError::InvalidLength)
         );
 
         let segments_long = [
@@ -502,7 +502,7 @@ mod tests {
         ];
         assert_eq!(
             from_segments(&segments_long),
-            Err(Ipv6AddressError::InvalidLength)
+            Err(IPv6AddressError::InvalidLength)
         );
     }
 

@@ -6,7 +6,7 @@ pub mod arp;
 pub mod packet;
 
 use crate::address::ipv4::IPv4AddressError;
-use crate::address::ipv6::Ipv6AddressError;
+use crate::address::ipv6::IPv6AddressError;
 
 
 #[derive(Debug, PartialEq)]
@@ -15,7 +15,7 @@ pub enum ParsingError {
     UnsupportedEthertype,
     InvalidPacketLength,
     IPv4AddressError(IPv4AddressError),
-    IPv6AddressError(Ipv6AddressError),
+    IPv6AddressError(IPv6AddressError),
     ValidationError(ValidationError),
     Default
 }
@@ -44,6 +44,7 @@ pub enum ValidationError {
     HeaderLengthExceedsTotalLength,
     TotalLengthExceedsBufferLength,
     InvalidPacketLength,
+    InvalidPayloadLength,
     Default
 }
 
@@ -55,6 +56,7 @@ impl std::fmt::Display for ValidationError {
             ValidationError::HeaderLengthExceedsTotalLength => write!(f, "Header length exceeds total length"),
             ValidationError::TotalLengthExceedsBufferLength => write!(f, "Total length exceeds buffer length"),
             ValidationError::InvalidPacketLength => write!(f, "The packet length is invalid"),
+            ValidationError::InvalidPayloadLength => write!(f, "The payload length is invalid"),
             ValidationError::Default => write!(f, "Validation error!"),
         }
     }
@@ -68,8 +70,8 @@ impl From<IPv4AddressError> for ParsingError {
     }
 }
 
-impl From<Ipv6AddressError> for ParsingError {
-    fn from(error: Ipv6AddressError) -> Self {
+impl From<IPv6AddressError> for ParsingError {
+    fn from(error: IPv6AddressError) -> Self {
         ParsingError::IPv6AddressError(error)
     }
 }

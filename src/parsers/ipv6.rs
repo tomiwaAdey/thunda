@@ -31,11 +31,11 @@ use super::{ParsingError, ValidationError};
 // |                                                               |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 #[derive(Debug, Clone)]
-pub struct Ipv6Packet<'a> {
+pub struct IPv6Packet<'a> {
     buffer: &'a [u8],
 }
 
-impl<'a> Ipv6Packet<'a> {
+impl<'a> IPv6Packet<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
         Self { buffer }
     }
@@ -150,46 +150,46 @@ mod tests {
     #[test]
     fn test_new_with_valid_buffer() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.buffer.len(), 40);
     }
 
     #[test]
     fn test_new_with_validation_success() {
         let buffer = generate_valid_ipv6_buffer();
-        assert!(Ipv6Packet::new_with_validation(&buffer).is_ok());
+        assert!(IPv6Packet::new_with_validation(&buffer).is_ok());
     }
 
     #[test]
     fn test_new_with_too_small_buffer() {
         let small_buffer = vec![0u8; 10]; // Smaller than an IPv6 header
-        assert!(Ipv6Packet::new(&small_buffer).check_length().is_err());
+        assert!(IPv6Packet::new(&small_buffer).check_length().is_err());
     }
 
     #[test]
     fn test_new_with_validation_failure() {
         let small_buffer = vec![0u8; 10]; // Smaller than an IPv6 header
-        assert!(Ipv6Packet::new_with_validation(&small_buffer).is_err());
+        assert!(IPv6Packet::new_with_validation(&small_buffer).is_err());
     }
 
     #[test]
     fn test_check_length_exact_size() {
         let buffer = generate_valid_ipv6_buffer(); // No payload, just the header
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert!(packet.check_length().is_ok());
     }
 
     #[test]
     fn test_check_length_smaller_than_header() {
         let small_buffer = vec![0u8; 39]; // 1 byte smaller than an IPv6 header
-        let packet = Ipv6Packet::new(&small_buffer);
+        let packet = IPv6Packet::new(&small_buffer);
         assert!(packet.check_length().is_err());
     }
 
     #[test]
     fn test_header_length() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.header_length(), 40);
     }
 
@@ -197,14 +197,14 @@ mod tests {
     #[test]
     fn test_version() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.version(), 6);
     }
 
     // #[test]
     // fn test_traffic_class() {
     //     let buffer = generate_valid_ipv6_buffer();
-    //     let packet = Ipv6Packet::new(&buffer);
+    //     let packet = IPv6Packet::new(&buffer);
     //     assert_eq!(packet.traffic_class(), 0);
     // }
 
@@ -215,7 +215,7 @@ mod tests {
         buffer[1] |= 0x0f; // Flow Label = 0x000fffff
         buffer[2] = 0xff;
         buffer[3] = 0xff;
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.flow_label(), 0x000fffff);
     }
 
@@ -225,7 +225,7 @@ mod tests {
         // Set payload length to a known value
         buffer[4] = 0x01; // Payload length = 256
         buffer[5] = 0x00;
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.payload_length().unwrap(), 256);
     }
 
@@ -235,28 +235,28 @@ mod tests {
         // Set payload length to a known value
         buffer[4] = 0x01; // Payload length = 256
         buffer[5] = 0x00;
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.total_length().unwrap(), 40 + 256); // Header + Payload
     }
 
     #[test]
     fn test_next_header() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.next_header(), 59); // No Next Header
     }
 
     #[test]
     fn test_hop_limit() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.hop_limit(), 255);
     }
 
     #[test]
     fn test_source_and_destination() {
         let buffer = generate_valid_ipv6_buffer();
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         let src = packet.source().unwrap();
         let dst = packet.destination().unwrap();
         assert_eq!(src, address::ipv6::from_bytes(&[0xff; 16]).unwrap());
@@ -270,7 +270,70 @@ mod tests {
         // Extend buffer with dummy payload
         let payload = vec![0xab; 10]; // Dummy payload
         buffer.extend_from_slice(&payload);
-        let packet = Ipv6Packet::new(&buffer);
+        let packet = IPv6Packet::new(&buffer);
         assert_eq!(packet.payload().unwrap(), &payload[..]);
+    }
+
+    #[test]
+    fn test_insufficient_buffer_length() {
+        let buffer = vec![0u8; 20]; // Less than the minimum IPv6 header size
+        assert!(matches!(IPv6Packet::new_with_validation(&buffer), Err(_)));
+    }
+
+    // #[test]
+    // fn test_invalid_version() {
+    //     let mut buffer = generate_valid_ipv6_buffer();
+    //     buffer[0] = 0x50; // Version set to 5 instead of 6
+    //     assert!(matches!(IPv6Packet::new_with_validation(&buffer), Err(ParsingError::InvalidVersion)));
+    // }
+
+    #[test]
+    fn test_invalid_payload_length() {
+        let mut buffer = generate_valid_ipv6_buffer();
+        // Set an invalid payload length that exceeds the actual buffer size
+        buffer[4] = 0xFF;
+        buffer[5] = 0xFF; // Payload length set to 65535
+        assert!(matches!(IPv6Packet::new_with_validation(&buffer), Err(_)));
+    }
+
+    #[test]
+    fn test_maximum_payload_length() {
+        let mut buffer = generate_valid_ipv6_buffer();
+        // Set maximum payload length
+        buffer[4] = 0xFF;
+        buffer[5] = 0xFF; // Maximum payload length 65535
+        let packet = IPv6Packet::new(&buffer);
+        assert_eq!(packet.payload_length().unwrap(), 65535);
+    }
+
+    #[test]
+    fn test_traffic_class_and_flow_label_maximum_values() {
+        let mut buffer = generate_valid_ipv6_buffer();
+        // Set maximum traffic class
+        buffer[0] = 0x6F; // Version 6, Traffic Class = 1111 (binary)
+        buffer[1] = 0xFF; // Traffic Class (last 4 bits) + Flow Label (first 4 bits)
+        // Set maximum flow label
+        buffer[2] = 0xFF;
+        buffer[3] = 0xFF; // Flow Label continues
+        let packet = IPv6Packet::new(&buffer);
+        assert_eq!(packet.traffic_class(), 0xFF);
+        assert_eq!(packet.flow_label(), 0x0FFFFF);
+    }
+
+    #[test]
+    fn test_unrecognized_next_header() {
+        let mut buffer = generate_valid_ipv6_buffer();
+        buffer[6] = 0xFF; // Unrecognized Next Header value
+        let packet = IPv6Packet::new(&buffer);
+        assert_eq!(packet.next_header(), 0xFF);
+    }
+
+    #[test]
+    fn test_payload_length_zero() {
+        let buffer = generate_valid_ipv6_buffer();
+        // Payload length is already set to 0 in `create_valid_ipv6_packet`
+        let packet = IPv6Packet::new(&buffer);
+        assert_eq!(packet.payload_length().unwrap(), 0);
+        assert!(packet.payload().unwrap().is_empty());
     }
 }
