@@ -113,6 +113,12 @@ impl IPv6 {
             (seg7 & 0xFF) as u8,
         ])
     }
+
+    /// Return an IPv6 address as an array of octets in big-endian
+    pub fn to_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
 }
 
 /// Construct an IPv6 address from a string
@@ -133,10 +139,6 @@ pub fn from_bytes(data: &[u8]) -> Result<IPv6, IPv6AddressError> {
     Ok(IPv6(bytes))
 }
 
-/// Return an IPv6 address as an array of octets in big-endian
-pub fn to_bytes(addr: &IPv6) -> &[u8] {
-    &addr.0
-}
 
 /// Construct an IPv6 address from an array of word segments in big-endian
 pub fn from_segments(data: &[u16]) -> Result<IPv6, IPv6AddressError> {
@@ -512,7 +514,7 @@ mod tests {
             0x20, 0x01, 0x0d, 0xb8, 0x85, 0xa3, 0x00, 0x00,
             0x00, 0x00, 0x8a, 0x2e, 0x03, 0x70, 0x73, 0x34,
         ]);
-        let bytes = to_bytes(&ipv6_addr);
+        let bytes = ipv6_addr.to_bytes();
         let expected_bytes: [u8; 16] = [
             0x20, 0x01, 0x0d, 0xb8, 0x85, 0xa3, 0x00, 0x00,
             0x00, 0x00, 0x8a, 0x2e, 0x03, 0x70, 0x73, 0x34,
