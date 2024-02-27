@@ -18,8 +18,8 @@ TCP connections.
 
 ## Features
 
-High Performance: Designed with performance as a priority, utilizing Rust's asynchronous programming model and efficient memory management practices.
-User-Level Networking: Operates in user space, bypassing the kernel's networking stack for faster packet processing.
-Actor Model: Leverages the actor model for concurrency, making network I/O, packet parsing, and other functionalities more robust and scalable.
-Flexible Packet Processing: Supports raw packet input/output via TAP/AF_XDP, with plans to include DPDK support for even faster data plane operations.
-Protocol Support: Initial focus on core protocols such as Ethernet, ARP, IPv4, IPv6, ICMPv4, and ICMPv6, with a modular design for extending protocol support.
+- High Performance: Designed with performance as a priority, utilizing Rust's asynchronous programming model and efficient memory management practices.
+- User-Level Networking: Operates in user space, bypassing the kernel's networking stack for faster packet processing.
+- Actor Model: Leverages the actor model for concurrency, making network I/O, packet parsing, and other functionalities more robust and scalable.
+- Flexible Packet Processing: Supports raw packet input/output via TAP/AF_XDP, with plans to include DPDK support for even faster data plane operations.
+- Protocol Support: Initial focus on core protocols such as Ethernet, ARP, IPv4, IPv6, ICMPv4, and ICMPv6, with a modular design for extending protocol support.
