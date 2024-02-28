@@ -11,7 +11,7 @@ pub const ETHERTYPE_IPV6: u16 = 0x86DD;
 
 pub const ETHER_MIN_LENGTH: usize = 14;
 
-
+/// Represents an Ethernet Frame
 pub struct EthernetFrame<'a> {
     buffer: &'a [u8],
 }

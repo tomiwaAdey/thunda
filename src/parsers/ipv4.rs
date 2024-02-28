@@ -34,8 +34,7 @@ pub struct Key {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |                    Options                    |    Padding    |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-/// Provides lazy access to IPv4 packet fields.
+// Provides lazy access to IPv4 packet fields
 pub struct IPv4Packet<'a> {
     buffer: &'a [u8],
 }
